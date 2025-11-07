@@ -110,7 +110,7 @@ InitTestScene*.unity*
 /.DS_Store
 
 # Library cache
-/Library/PackageCache
+/Library/PackageCache/*
 /Library/ArtifactDB
 
 
