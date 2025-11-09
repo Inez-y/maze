@@ -37,6 +37,7 @@ public class FPPlayerController : MonoBehaviour
             var camComp = GetComponentInChildren<Camera>(true);
             if (camComp != null) cam = camComp.transform;
             else if (Camera.main != null) cam = Camera.main.transform;
+
         }
 
         Cursor.lockState = CursorLockMode.Locked;
@@ -106,6 +107,11 @@ public class FPPlayerController : MonoBehaviour
             transform.position += dir * moveSpeed * Time.deltaTime;
         else
             cc.SimpleMove(dir * moveSpeed);
+
+
+        // camera reset
+        if (resetAction != null) resetAction.performed += _ => ResetToStart();
+
     }
 
     void ToggleNoclip()
@@ -118,7 +124,18 @@ public class FPPlayerController : MonoBehaviour
     {
         bool wasEnabled = cc.enabled;
         cc.enabled = false;
+
+        // Reset player body position & rotation
         transform.SetPositionAndRotation(startPos, startRot);
+
+        // Reset camera to its original local orientation
+        if (cam != null)
+        {
+            cam.localPosition = new Vector3(2.65f,0.75f,0.3350065f);             
+            cam.localRotation = Quaternion.identity;   // gives 0,0,0  
+        }
+
         cc.enabled = wasEnabled;
     }
+
 }

@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 public class GoalTrigger : MonoBehaviour
 {
-    [SerializeField] private GameObject winUI; // Assign your UI panel in the Inspector
+    [SerializeField] private GameObject winUI; 
 
     private void OnTriggerEnter(Collider other)
     {
