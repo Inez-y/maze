@@ -1,4 +1,5 @@
-# 🌀 COMP 7051 Assignment 2
+# COMP 7051 Assignment 2
+# 🌀 3D Maze Game – Unity3D
 
 ## 📖 Overview
 
@@ -106,11 +107,4 @@ When the player reaches the goal, a message appears indicating **victory**.
 ---
 
 ## 🧩 Screenshots
-/Assets/Screenshots/start.png  
-![Start](Assets/Screenshots/start.png)
-/Assets/Screenshots/enemy.png  
-![Enemy](Assets/Screenshots/enemy.png)
-/Assets/Screenshots/goal.png  
-![Goal](Assets/Screenshots/goal.png)
-/Assets/Screenshots/win.png  
-![Win](Assets/Screenshots/win.png)
+
