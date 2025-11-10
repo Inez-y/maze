@@ -9,10 +9,10 @@ public class FPPlayerController : MonoBehaviour
     public float moveSpeed = 4f;
 
     [Header("Scene Refs")]
-    public Transform cam;              // Assign the Cinemachine camera (or it will auto-find)
+    public Transform cam;             
 
     [Header("Options")]
-    public bool alignYawToCamera = true;  // Rotate player Y to match camera Y each frame
+    public bool alignYawToCamera = true;  // rotate player Y to match camera Y each frame
 
     [Header("Action Names (PlayerInput)")]
     public string moveActionName   = "Move";         // Vector2
@@ -23,8 +23,13 @@ public class FPPlayerController : MonoBehaviour
     PlayerInput playerInput;
     InputAction moveAction, noclipAction, resetAction;
 
-    Vector3 startPos;
+    Vector3    startPos;
     Quaternion startRot;
+
+    // Camera start transform (so Home truly resets to the exact startup look)
+    Vector3    camStartLocalPos;
+    Quaternion camStartLocalRot;
+
     bool noclip;
 
     void Awake()
@@ -37,15 +42,21 @@ public class FPPlayerController : MonoBehaviour
             var camComp = GetComponentInChildren<Camera>(true);
             if (camComp != null) cam = camComp.transform;
             else if (Camera.main != null) cam = Camera.main.transform;
-
         }
 
         Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        Cursor.visible   = false;
 
+        // Save starting transforms
         startPos = transform.position;
         startRot = transform.rotation;
+        if (cam != null)
+        {
+            camStartLocalPos = cam.localPosition;
+            camStartLocalRot = cam.localRotation;
+        }
 
+        // Bind input actions once
         var map = playerInput.actions;
         moveAction   = map.FindAction(moveActionName,   false);
         noclipAction = map.FindAction(noclipActionName, false);
@@ -54,10 +65,10 @@ public class FPPlayerController : MonoBehaviour
         if (noclipAction != null) noclipAction.performed += _ => ToggleNoclip();
         if (resetAction  != null) resetAction.performed  += _ => ResetToStart();
 
-#if UNITY_EDITOR
-        if (moveAction == null) Debug.LogError($"FPPlayerController: Move action '{moveActionName}' not found.");
-        if (cam == null) Debug.LogWarning("FPPlayerController: No camera reference; movement will fall back to player forward.");
-#endif
+        #if UNITY_EDITOR
+                if (moveAction == null) Debug.LogError($"FPPlayerController: Move action '{moveActionName}' not found.");
+                if (cam == null) Debug.LogWarning("FPPlayerController: No camera reference; movement will fall back to player forward.");
+        #endif
     }
 
     void OnEnable()
@@ -76,26 +87,24 @@ public class FPPlayerController : MonoBehaviour
 
     void Update()
     {
-        // Optionally rotate the player’s Yaw to the camera’s Yaw so the model faces where we look.
+        // Keep player body aligned to camera yaw if desired
         if (alignYawToCamera && cam != null)
         {
             Vector3 e = cam.rotation.eulerAngles;
             transform.rotation = Quaternion.Euler(0f, e.y, 0f);
         }
 
-        // Read input
-        Vector2 move = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        // Movement in camera space (flattened)
+        Vector2  move = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        Vector3  fwd, right;
 
-        // Build movement direction in camera space (flattened), so forward = where the camera looks.
-        Vector3 fwd, right;
         if (cam != null)
         {
-            fwd = cam.forward;  fwd.y = 0f;  fwd.Normalize();
-            right = cam.right;  right.y = 0f; right.Normalize();
+            fwd   = cam.forward;  fwd.y   = 0f; fwd.Normalize();
+            right = cam.right;    right.y = 0f; right.Normalize();
         }
         else
         {
-            // Fallback to player orientation
             fwd = transform.forward;
             right = transform.right;
         }
@@ -107,11 +116,6 @@ public class FPPlayerController : MonoBehaviour
             transform.position += dir * moveSpeed * Time.deltaTime;
         else
             cc.SimpleMove(dir * moveSpeed);
-
-
-        // camera reset
-        if (resetAction != null) resetAction.performed += _ => ResetToStart();
-
     }
 
     void ToggleNoclip()
@@ -125,17 +129,33 @@ public class FPPlayerController : MonoBehaviour
         bool wasEnabled = cc.enabled;
         cc.enabled = false;
 
-        // Reset player body position & rotation
+        // Reset player body pose
         transform.SetPositionAndRotation(startPos, startRot);
 
-        // Reset camera to its original local orientation
+        // Reset camera local pose
         if (cam != null)
         {
-            cam.localPosition = new Vector3(2.65f,0.75f,0.3350065f);             
-            cam.localRotation = Quaternion.identity;   // gives 0,0,0  
+            cam.localPosition = camStartLocalPos;
+            cam.localRotation = camStartLocalRot;
+
+        #if CINEMACHINE
+            // If using Cinemachine POV or FreeLook, also zero its axes so mouse delta
+            // doesn't immediately push you away from the reset orientation.
+            var pov = cam.GetComponentInParent<Cinemachine.CinemachinePOV>();
+            if (pov != null)
+            {
+                pov.m_HorizontalAxis.Value = 0f;
+                pov.m_VerticalAxis.Value   = 0f;
+            }
+            var free = cam.GetComponentInParent<Cinemachine.CinemachineFreeLook>();
+            if (free != null)
+            {
+                free.m_XAxis.Value = 0f; // set to your desired default if not zero
+                free.m_YAxis.Value = 0.5f;
+            }
+        #endif
         }
 
         cc.enabled = wasEnabled;
     }
-
 }
