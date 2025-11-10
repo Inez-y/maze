@@ -977,7 +977,7 @@ MonoBehaviour:
   width: 8
   height: 8
   cellsRoot: {fileID: 393306421}
-  yOffset: 0
+  autoBuildAtRuntime: 1
 --- !u!114 &1623019956
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -993,6 +993,7 @@ MonoBehaviour:
   fixedMapPrefab: {fileID: 4688101757329068857, guid: 20b4326c2d4fc40a9aaa2c2cf8750ae6, type: 3}
   spawnPosition: {x: 0, y: 0, z: 0}
   spawnRotation: {x: 0, y: 0, z: 0, w: 1}
+  autoWireEnemies: 1
 --- !u!1 &1795026486
 GameObject:
   m_ObjectHideFlags: 0
@@ -1301,10 +1302,10 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 318950378131191680, guid: 2358c3aecec502e43b4d369675e55084, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1623019954}
+      addedObject: {fileID: 1623019956}
     - targetCorrespondingSourceObject: {fileID: 318950378131191680, guid: 2358c3aecec502e43b4d369675e55084, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1623019956}
+      addedObject: {fileID: 1623019954}
   m_SourcePrefab: {fileID: 100100000, guid: 2358c3aecec502e43b4d369675e55084, type: 3}
 --- !u!1001 &7814711845354937424
 PrefabInstance:

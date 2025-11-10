@@ -1,1015 +1,339 @@
-// // // using UnityEngine;
-// // // using System.Collections;
-// // // using System.Collections.Generic;
-// // // using System.Linq;
-
-// // // [RequireComponent(typeof(CharacterController))]
-// // // public class EnemyControllerFSM : MonoBehaviour
-// // // {
-// // //     [Header("Refs")]
-// // //     public FixedMap maze;          // <-- your FixedMap prefab/instance
-// // //     public Animator animator;
-
-// // //     [Header("Movement")]
-// // //     public float walkSpeed = 2.2f;
-// // //     public float runSpeed = 4.0f;
-// // //     public float waitAtCell = 0.4f;
-// // //     public float yOffset = 0f;
-// // //     public float gravity = -9.81f;
-// // //     public float arriveEpsilon = 0.03f;
-// // //     const float IdleDuration = 1f;
-
-// // //     [Header("Animation (BlendTree thresholds: 0=Idle, 1=Walk, 2=Run)")]
-// // //     public float animWalkValue = 1f;
-// // //     public float animRunValue = 2f;
-
-// // //     [Header("Anti-stuck")]
-// // //     public float minProgress = 0.22f;     // meters per check window
-// // //     public float stuckWindow = 0.25f;     // seconds between progress checks
-// // //     public float wallPushStrength = 0.9f; // m/s sideways push off walls
-// // //     public float recenterSpeed = 3.0f;    // m/s toward cell center
-
-// // //     enum State { Idle, Choose, Move, Recenter }
-// // //     State state;
-// // //     float stateTimer;
-
-// // //     CharacterController cc;
-// // //     Vector3 velY;
-// // //     float stuckTimer;
-// // //     Vector3 lastCheckPos;
-// // //     int sideHitFrames;
-
-// // //     int cx, cy, prevCx, prevCy;   // grid cell indices
-// // //     Vector3 targetPos;
-// // //     float currentSpeed;
-
-// // //     Vector3 wallPushAccum;        // accumulated in OnControllerColliderHit
-
-// // //     static readonly int SpeedHash = Animator.StringToHash("Speed");
-
-// // //     void Awake()
-// // //     {
-// // //         cc = GetComponent<CharacterController>();
-// // //         if (!animator) animator = GetComponentInChildren<Animator>();
-// // //         if (animator) animator.applyRootMotion = false; // we drive motion via cc.Move
-// // //     }
-
-// // //     void OnEnable()
-// // //     {
-// // //         if (!maze)
-// // //         {
-// // //             Debug.LogError("[Enemy] FixedMap reference not assigned.");
-// // //             enabled = false;
-// // //             return;
-// // //         }
-// // //         StartCoroutine(BootWhenMapReady());
-// // //     }
-
-// // //     IEnumerator BootWhenMapReady()
-// // //     {
-// // //         // Wait until your FixedMap finished building / scanning the scene
-// // //         yield return new WaitUntil(() => maze != null && maze.IsReady);
-
-// // //         // Choose a starting cell (default: top-right corner of the grid)
-// // //         cx = Mathf.Max(0, maze.width - 1);
-// // //         cy = Mathf.Max(0, maze.height - 1);
-// // //         prevCx = cx; prevCy = cy;
-
-// // //         // Place the enemy at the center of that cell
-// // //         var spawn = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-// // //         transform.position = spawn;
-
-// // //         // Controller tuning
-// // //         cc.stepOffset = 0.25f;
-// // //         cc.skinWidth  = 0.02f;
-
-// // //         // Anti-stuck init
-// // //         lastCheckPos  = transform.position;
-// // //         stuckTimer    = 0f;
-// // //         sideHitFrames = 0;
-// // //         wallPushAccum = Vector3.zero;
-
-// // //         if (animator) animator.SetFloat(SpeedHash, 0f);
-// // //         Switch(State.Idle, IdleDuration);
-
-// // //         Debug.Log($"[Enemy] Boot complete at cell {cx},{cy}");
-// // //     }
-
-// // //     Vector3 ClampInsideInnerBounds(Vector3 pos)
-// // //     {
-// // //         var ib = maze.GetInnerBounds();
-// // //         float m = cc ? cc.radius : 0.5f;    // margin = controller radius
-// // //         pos.x = Mathf.Clamp(pos.x, ib.min.x + m, ib.max.x - m);
-// // //         pos.z = Mathf.Clamp(pos.z, ib.min.z + m, ib.max.z - m);
-// // //         return pos;
-// // //     }
-
-// // //     void OnControllerColliderHit(ControllerColliderHit hit)
-// // //     {
-// // //         var n = hit.normal; n.y = 0f;
-// // //         if (n.sqrMagnitude > 0.0001f)
-// // //             wallPushAccum += n.normalized;
-// // //     }
-
-// // //     void Update()
-// // //     {
-// // //         if (!cc || !maze || !maze.IsReady) return;
-
-// // //         // gravity
-// // //         if (cc.isGrounded && velY.y < 0f) velY.y = -2f;
-// // //         velY.y += gravity * Time.deltaTime;
-
-// // //         // normalized wall push (per frame)
-// // //         Vector3 wallPush = Vector3.zero;
-// // //         if (wallPushAccum.sqrMagnitude > 0.0001f)
-// // //         {
-// // //             wallPush = wallPushAccum.normalized * wallPushStrength * Time.deltaTime;
-// // //             wallPushAccum = Vector3.zero;
-// // //         }
-
-// // //         switch (state)
-// // //         {
-// // //             case State.Idle:
-// // //                 stateTimer -= Time.deltaTime;
-// // //                 if (stateTimer <= 0f) Switch(State.Choose);
-// // //                 cc.Move(velY * Time.deltaTime + wallPush);
-// // //                 break;
-
-// // //             case State.Choose:
-// // //             {
-// // //                 // Use FixedMap.OpenNeighbors
-// // //                 var neighbors = new List<(int, int)>(maze.OpenNeighbors(cx, cy).Select(n => (n.nx, n.ny)));
-
-// // //                 // Avoid immediate backtrack when there are options
-// // //                 if (neighbors.Count > 1)
-// // //                     neighbors.RemoveAll(n => n.Item1 == prevCx && n.Item2 == prevCy);
-
-// // //                 if (neighbors.Count == 0)
-// // //                 {
-// // //                     // Dead end → step back if possible
-// // //                     if (prevCx != cx || prevCy != cy) neighbors.Add((prevCx, prevCy));
-// // //                     else { Switch(State.Idle, IdleDuration); break; }
-// // //                 }
-
-// // //                 var next = neighbors[Random.Range(0, neighbors.Count)];
-// // //                 prevCx = cx; prevCy = cy;
-// // //                 cx = next.Item1; cy = next.Item2;
-
-// // //                 // Target = center of the chosen neighbor cell
-// // //                 targetPos = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-
-// // //                 // Randomly walk or run
-// // //                 bool doRun = Random.value < 0.5f;
-// // //                 currentSpeed = doRun ? runSpeed : walkSpeed;
-// // //                 if (animator) animator.SetFloat(SpeedHash, doRun ? animRunValue : animWalkValue);
-
-// // //                 Switch(State.Move);
-// // //                 break;
-// // //             }
-
-// // //             case State.Move:
-// // //             {
-// // //                 var to = targetPos - transform.position;
-// // //                 Vector3 horizontal = new Vector3(to.x, 0f, to.z);
-
-// // //                 // Face direction smoothly
-// // //                 if (horizontal.sqrMagnitude > 0.0001f)
-// // //                 {
-// // //                     var look = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
-// // //                     transform.rotation = Quaternion.Slerp(transform.rotation, look, 10f * Time.deltaTime);
-// // //                 }
-
-// // //                 // Move with collisions
-// // //                 Vector3 step = horizontal.normalized * currentSpeed * Time.deltaTime;
-// // //                 var flags = cc.Move(step + velY * Time.deltaTime + wallPush);
-
-// // //                 // Side hits counting (scraping)
-// // //                 if ((flags & CollisionFlags.Sides) != 0) sideHitFrames++;
-// // //                 else sideHitFrames = 0;
-
-// // //                 // Arrived?
-// // //                 if (horizontal.sqrMagnitude <= arriveEpsilon * arriveEpsilon)
-// // //                 {
-// // //                     if (animator) animator.SetFloat(SpeedHash, 0f);
-// // //                     Switch(State.Idle, IdleDuration);
-// // //                     stuckTimer = 0f;
-// // //                     lastCheckPos = transform.position;
-// // //                     sideHitFrames = 0;
-// // //                     break;
-// // //                 }
-
-// // //                 // Stuck detection (no progress OR scraping too long)
-// // //                 stuckTimer += Time.deltaTime;
-// // //                 if (stuckTimer >= stuckWindow)
-// // //                 {
-// // //                     float progressed = Vector3.Distance(transform.position, lastCheckPos);
-// // //                     lastCheckPos = transform.position;
-// // //                     stuckTimer = 0f;
-
-// // //                     bool scraping = sideHitFrames > 6;
-// // //                     if (progressed < minProgress || scraping)
-// // //                     {
-// // //                         if (animator) animator.SetFloat(SpeedHash, 0f);
-// // //                         Switch(State.Recenter, 0.15f);
-// // //                     }
-// // //                 }
-// // //                 break;
-// // //             }
-
-// // //             case State.Recenter:
-// // //             {
-// // //                 Vector3 center = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-// // //                 Vector3 toCenter = center - transform.position;
-// // //                 Vector3 horiz = new Vector3(toCenter.x, 0f, toCenter.z);
-
-// // //                 if (horiz.sqrMagnitude > arriveEpsilon * arriveEpsilon)
-// // //                 {
-// // //                     Vector3 step = horiz.normalized * recenterSpeed * Time.deltaTime;
-// // //                     cc.Move(step + velY * Time.deltaTime + wallPush);
-// // //                     Switch(State.Idle, 1.5f);    // brief settle
-// // //                 }
-// // //                 else
-// // //                 {
-// // //                     Switch(State.Idle, IdleDuration);
-// // //                     sideHitFrames = 0;
-// // //                 }
-// // //                 break;
-// // //             }
-// // //         }
-// // //     }
-
-// // //     void Switch(State s, float timer = 0f)
-// // //     {
-// // //         state = s;
-// // //         stateTimer = timer;
-
-// // //         if (state == State.Idle)
-// // //         {
-// // //             if (animator) animator.SetFloat(SpeedHash, 0f);
-// // //             stuckTimer    = 0f;
-// // //             sideHitFrames = 0;
-// // //             lastCheckPos  = transform.position;
-// // //         }
-
-// // //         Debug.Log($"[Enemy] -> {state} (t={timer:0.00})");
-// // //     }
-// // // }
-
-// // using UnityEngine;
-// // using System.Collections.Generic;
-// // using System.Linq;
-
-// // [RequireComponent(typeof(CharacterController))]
-// // public class EnemyControllerFSM : MonoBehaviour
-// // {
-// //     [Header("Refs")]
-// //     public FixedMap maze;
-// //     public Animator animator;
-
-// //     [Header("Movement")]
-// //     public float walkSpeed = 2.2f;
-// //     public float runSpeed = 4.0f;
-// //     public float waitAtCell = 0.4f;
-// //     public float yOffset = 0f;
-// //     public float gravity = -9.81f;
-// //     public float arriveEpsilon = 0.03f;
-// //     const float IdleDuration = 1f;   
-
-
-// //     [Header("Animation (BlendTree thresholds: 0=Idle, 1=Walk, 2=Run)")]
-// //     public float animWalkValue = 1f;
-// //     public float animRunValue = 2f;
-
-// //     [Header("Anti-stuck")]
-// //     public float minProgress = 0.22f;  // meters per check window
-// //     public float stuckWindow = 0.25f;  // seconds between progress checks
-// //     public float wallPushStrength = 0.9f;  // m/s sideways push off walls
-// //     public float recenterSpeed = 3.0f;   // m/s toward cell center
-
-// //     enum State { Idle, Choose, Move, Recenter }
-// //     State state;
-// //     float stateTimer;
-
-// //     CharacterController cc;
-// //     Vector3 velY;              
-// //     float stuckTimer;
-// //     Vector3 lastCheckPos;
-// //     int sideHitFrames;
-
-// //     int cx, cy, prevCx, prevCy; // current/previous grid cell
-// //     Vector3 targetPos;
-// //     float currentSpeed;
-
-// //     Vector3 wallPushAccum; // collected in collision callback, applied next frame
-
-// //     static readonly int SpeedHash = Animator.StringToHash("Speed");
-
-// //     void Awake()
-// //     {
-// //         cc = GetComponent<CharacterController>();
-// //         if (!animator) animator = GetComponentInChildren<Animator>();
-// //         // Ensure Animator drives only pose, not motion
-// //         if (animator) animator.applyRootMotion = false;
-// //     }
-
-// //     Vector3 ClampInsideInnerBounds(Vector3 pos)
-// //     {
-// //         var ib = maze.GetInnerBounds();
-// //         // keep a margin for the CharacterController radius
-// //         float m = cc ? cc.radius : 0.5f;
-// //         pos.x = Mathf.Clamp(pos.x, ib.min.x + m, ib.max.x - m);
-// //         pos.z = Mathf.Clamp(pos.z, ib.min.z + m, ib.max.z - m);
-// //         return pos;
-// //     }
-
-// //     // void OnControllerColliderHit(ControllerColliderHit hit)
-// //     // {
-// //     //     // Accumulate horizontal push; DO NOT call cc.Move here
-// //     //     var n = hit.normal; n.y = 0f;
-// //     //     if (n.sqrMagnitude > 0.0001f)
-// //     //         wallPushAccum += n.normalized;
-// //     // }
-
-// //     void Update()
-// //     {
-// //         if (!cc) return;
-
-// //         // gravity
-// //         if (cc.isGrounded && velY.y < 0f) velY.y = -2f;
-// //         velY.y += gravity * Time.deltaTime;
-
-// //         // normalized wall push for this frame
-// //         Vector3 wallPush = Vector3.zero;
-// //         if (wallPushAccum.sqrMagnitude > 0.0001f)
-// //         {
-// //             wallPush = wallPushAccum.normalized * wallPushStrength * Time.deltaTime;
-// //             wallPushAccum = Vector3.zero;
-// //         }
-
-// //         switch (state)
-// //         {
-// //             case State.Idle:
-// //                 stateTimer -= Time.deltaTime;
-// //                 if (stateTimer <= 0f) Switch(State.Choose);
-// //                 cc.Move(velY * Time.deltaTime + wallPush);
-// //                 break;
-
-// //             case State.Choose:
-// //                 {
-// //                     var neighbors = new List<(int, int)>(maze.OpenNeighbors(cx, cy).Select(n => (n.nx, n.ny)));
-
-// //                     // avoid immediate backtrack when there are options
-// //                     if (neighbors.Count > 1)
-// //                         neighbors.RemoveAll(n => n.Item1 == prevCx && n.Item2 == prevCy);
-
-// //                     if (neighbors.Count == 0)
-// //                     {
-// //                         // dead end → step back if possible
-// //                         if (prevCx != cx || prevCy != cy) neighbors.Add((prevCx, prevCy));
-// //                         else { Switch(State.Idle, IdleDuration); break; }
-// //                     }
-
-// //                     var next = neighbors[Random.Range(0, neighbors.Count)];
-// //                     prevCx = cx; prevCy = cy;
-// //                     cx = next.Item1; cy = next.Item2;
-
-// //                     // targetPos = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-// //                     targetPos = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-// //                     targetPos = ClampInsideInnerBounds(targetPos);   // clamp targets too
-
-// //                     // randomly walk or run
-// //                     bool doRun = Random.value < 0.5f;
-// //                     currentSpeed = doRun ? runSpeed : walkSpeed;
-// //                     if (animator) animator.SetFloat(SpeedHash, doRun ? animRunValue : animWalkValue);
-
-// //                     Switch(State.Move);
-// //                     break;
-// //                 }
-
-// //             case State.Move:
-// //                 {
-// //                     var to = targetPos - transform.position;
-// //                     Vector3 horizontal = new Vector3(to.x, 0f, to.z);
-
-// //                     // Debug.Log($"[Enemy] dist={horizontal.magnitude:0.000} speed={currentSpeed:0.0}");
-// //                     // face direction smoothly
-// //                     if (horizontal.sqrMagnitude > 0.0001f)
-// //                     {
-// //                         var look = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
-// //                         transform.rotation = Quaternion.Slerp(transform.rotation, look, 10f * Time.deltaTime);
-// //                     }
-
-// //                     // move with collisions
-// //                     Vector3 step = horizontal.normalized * currentSpeed * Time.deltaTime;
-// //                     var flags = cc.Move(step + velY * Time.deltaTime + wallPush);
-
-// //                     // side hits counting (scraping)
-// //                     if ((flags & CollisionFlags.Sides) != 0) sideHitFrames++;
-// //                     else sideHitFrames = 0;
-
-// //                     // arrived?
-// //                     if (horizontal.sqrMagnitude <= arriveEpsilon * arriveEpsilon)
-// //                     {
-// //                         if (animator) animator.SetFloat(SpeedHash, 0f);
-// //                         Switch(State.Idle, IdleDuration);
-// //                         stuckTimer = 0f;
-// //                         lastCheckPos = transform.position;
-// //                         sideHitFrames = 0;
-// //                         break;
-// //                     }
-
-// //                     // stuck detection (no progress OR scraping too long)
-// //                     stuckTimer += Time.deltaTime;
-// //                     if (stuckTimer >= stuckWindow)
-// //                     {
-// //                         float progressed = Vector3.Distance(transform.position, lastCheckPos);
-// //                         lastCheckPos = transform.position;
-// //                         stuckTimer = 0f;
-
-// //                         bool scraping = sideHitFrames > 6;
-// //                         if (progressed < minProgress || scraping)
-// //                         {
-// //                             // smooth recentre (no teleport)
-// //                             if (animator) animator.SetFloat(SpeedHash, 0f);
-// //                             Switch(State.Recenter, 0.15f);
-// //                         }
-// //                     }
-// //                     break;
-// //                 }
-
-// //             case State.Recenter:
-// //                 {
-// //                     Vector3 center = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-// //                     Vector3 toCenter = center - transform.position;
-// //                     Vector3 horiz = new Vector3(toCenter.x, 0f, toCenter.z);
-
-// //                     if (horiz.sqrMagnitude > arriveEpsilon * arriveEpsilon)
-// //                     {
-// //                         Vector3 step = horiz.normalized * recenterSpeed * Time.deltaTime;
-// //                         cc.Move(step + velY * Time.deltaTime + wallPush);
-// //                         Switch(State.Idle, 1.5f);
-// //                     }
-// //                     else
-// //                     {
-// //                         // switch to idle duration, max 1 sec
-// //                         Switch(State.Idle, IdleDuration);
-// //                         sideHitFrames = 0;
-// //                     }
-// //                     break;
-// //                 }
-// //         }
-// //     }
-
-// //     void Switch(State s, float timer = 0f)
-// //     {
-// //         state = s;
-// //         stateTimer = timer;
-
-// //         // OnEnter hooks
-// //         if (state == State.Idle)
-// //         {
-// //             // ensure idle pose and clear anti-stuck bookkeeping
-// //             if (animator) animator.SetFloat(SpeedHash, 0f);
-// //             stuckTimer = 0f;
-// //             sideHitFrames = 0;
-// //             lastCheckPos = transform.position;
-// //         }
-
-// //         // Debug:
-// //         Debug.Log($"[Enemy] -> {state} (t={timer:0.00})");
-// //     }
-
-// // }
-// using UnityEngine;
-// using System.Collections;
-// using System.Collections.Generic;
-// using System.Linq;
-
-// [RequireComponent(typeof(CharacterController))]
-// public class EnemyControllerFSM : MonoBehaviour
-// {
-//     [Header("Refs")]
-//     public FixedMap maze;     // assigned or auto-filled from MapSpawner.ActiveMap
-//     public Animator animator;
-
-//     [Header("Movement")]
-//     public float walkSpeed = 2.2f;
-//     public float runSpeed = 4.0f;
-//     public float waitAtCell = 0.4f;
-//     public float yOffset = 0f;
-//     public float gravity = -9.81f;
-//     public float arriveEpsilon = 0.03f;
-//     const float IdleDuration = 1f;
-
-//     [Header("Animation (BlendTree thresholds: 0=Idle, 1=Walk, 2=Run)")]
-//     public float animWalkValue = 1f;
-//     public float animRunValue = 2f;
-
-//     [Header("Anti-stuck")]
-//     public float minProgress = 0.22f;
-//     public float stuckWindow = 0.25f;
-//     public float wallPushStrength = 0.9f;
-//     public float recenterSpeed = 3.0f;
-
-//     enum State { Idle, Choose, Move, Recenter }
-//     State state;
-//     float stateTimer;
-
-//     CharacterController cc;
-//     Vector3 velY;
-//     float stuckTimer;
-//     Vector3 lastCheckPos;
-//     int sideHitFrames;
-
-//     int cx, cy, prevCx, prevCy;
-//     Vector3 targetPos;
-//     float currentSpeed;
-
-//     Vector3 wallPushAccum;
-
-//     static readonly int SpeedHash = Animator.StringToHash("Speed");
-
-//     void Awake()
-//     {
-//         cc = GetComponent<CharacterController>();
-//         if (!animator) animator = GetComponentInChildren<Animator>();
-//         if (animator) animator.applyRootMotion = false;
-//     }
-
-//     void OnEnable()
-//     {
-//         // auto-wire from spawner if needed
-//         if (!maze) maze = MapSpawner.ActiveMap;
-
-//         if (!maze)
-//         {
-//             Debug.LogError("[Enemy] No FixedMap assigned and no ActiveMap found.");
-//             enabled = false;
-//             return;
-//         }
-//         StartCoroutine(BootWhenMapReady());
-//     }
-
-//     IEnumerator BootWhenMapReady()
-//     {
-//         yield return new WaitUntil(() => maze != null && maze.IsReady);
-
-//         cx = Mathf.Max(0, maze.width - 1);
-//         cy = Mathf.Max(0, maze.height - 1);
-//         prevCx = cx; prevCy = cy;
-
-//         var spawn = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-//         transform.position = spawn;
-
-//         cc.stepOffset = 0.25f;
-//         cc.skinWidth  = 0.02f;
-
-//         lastCheckPos  = transform.position;
-//         stuckTimer    = 0f;
-//         sideHitFrames = 0;
-//         wallPushAccum = Vector3.zero;
-
-//         if (animator) animator.SetFloat(SpeedHash, 0f);
-//         Switch(State.Idle, IdleDuration);
-//     }
-
-//     Vector3 ClampInsideInnerBounds(Vector3 pos)
-//     {
-//         var ib = maze.GetInnerBounds();
-//         float m = cc ? cc.radius : 0.5f;
-//         pos.x = Mathf.Clamp(pos.x, ib.min.x + m, ib.max.x - m);
-//         pos.z = Mathf.Clamp(pos.z, ib.min.z + m, ib.max.z - m);
-//         return pos;
-//     }
-
-//     void OnControllerColliderHit(ControllerColliderHit hit)
-//     {
-//         var n = hit.normal; n.y = 0f;
-//         if (n.sqrMagnitude > 0.0001f)
-//             wallPushAccum += n.normalized;
-//     }
-
-//     void Update()
-//     {
-//         if (!cc || !maze || !maze.IsReady) return;
-
-//         if (cc.isGrounded && velY.y < 0f) velY.y = -2f;
-//         velY.y += gravity * Time.deltaTime;
-
-//         Vector3 wallPush = Vector3.zero;
-//         if (wallPushAccum.sqrMagnitude > 0.0001f)
-//         {
-//             wallPush = wallPushAccum.normalized * wallPushStrength * Time.deltaTime;
-//             wallPushAccum = Vector3.zero;
-//         }
-
-//         switch (state)
-//         {
-//             case State.Idle:
-//                 stateTimer -= Time.deltaTime;
-//                 if (stateTimer <= 0f) Switch(State.Choose);
-//                 cc.Move(velY * Time.deltaTime + wallPush);
-//                 break;
-
-//             case State.Choose:
-//             {
-//                 var neighbors = new List<(int, int)>(maze.OpenNeighbors(cx, cy).Select(n => (n.nx, n.ny)));
-
-//                 if (neighbors.Count > 1)
-//                     neighbors.RemoveAll(n => n.Item1 == prevCx && n.Item2 == prevCy);
-
-//                 if (neighbors.Count == 0)
-//                 {
-//                     if (prevCx != cx || prevCy != cy) neighbors.Add((prevCx, prevCy));
-//                     else { Switch(State.Idle, IdleDuration); break; }
-//                 }
-
-//                 var next = neighbors[Random.Range(0, neighbors.Count)];
-//                 prevCx = cx; prevCy = cy;
-//                 cx = next.Item1; cy = next.Item2;
-
-//                 targetPos = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-
-//                 bool doRun = Random.value < 0.5f;
-//                 currentSpeed = doRun ? runSpeed : walkSpeed;
-//                 if (animator) animator.SetFloat(SpeedHash, doRun ? animRunValue : animWalkValue);
-
-//                 Switch(State.Move);
-//                 break;
-//             }
-
-//             case State.Move:
-//             {
-//                 var to = targetPos - transform.position;
-//                 Vector3 horizontal = new Vector3(to.x, 0f, to.z);
-
-//                 if (horizontal.sqrMagnitude > 0.0001f)
-//                 {
-//                     var look = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
-//                     transform.rotation = Quaternion.Slerp(transform.rotation, look, 10f * Time.deltaTime);
-//                 }
-
-//                 Vector3 step = horizontal.normalized * currentSpeed * Time.deltaTime;
-//                 var flags = cc.Move(step + velY * Time.deltaTime + wallPush);
-
-//                 if ((flags & CollisionFlags.Sides) != 0) sideHitFrames++;
-//                 else sideHitFrames = 0;
-
-//                 if (horizontal.sqrMagnitude <= arriveEpsilon * arriveEpsilon)
-//                 {
-//                     if (animator) animator.SetFloat(SpeedHash, 0f);
-//                     Switch(State.Idle, IdleDuration);
-//                     stuckTimer = 0f;
-//                     lastCheckPos = transform.position;
-//                     sideHitFrames = 0;
-//                     break;
-//                 }
-
-//                 stuckTimer += Time.deltaTime;
-//                 if (stuckTimer >= stuckWindow)
-//                 {
-//                     float progressed = Vector3.Distance(transform.position, lastCheckPos);
-//                     lastCheckPos = transform.position;
-//                     stuckTimer = 0f;
-
-//                     bool scraping = sideHitFrames > 6;
-//                     if (progressed < minProgress || scraping)
-//                     {
-//                         if (animator) animator.SetFloat(SpeedHash, 0f);
-//                         Switch(State.Recenter, 0.15f);
-//                     }
-//                 }
-//                 break;
-//             }
-
-//             case State.Recenter:
-//             {
-//                 Vector3 center = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-//                 Vector3 toCenter = center - transform.position;
-//                 Vector3 horiz = new Vector3(toCenter.x, 0f, toCenter.z);
-
-//                 if (horiz.sqrMagnitude > arriveEpsilon * arriveEpsilon)
-//                 {
-//                     Vector3 step = horiz.normalized * recenterSpeed * Time.deltaTime;
-//                     cc.Move(step + velY * Time.deltaTime + wallPush);
-//                     Switch(State.Idle, 1.5f);
-//                 }
-//                 else
-//                 {
-//                     Switch(State.Idle, IdleDuration);
-//                     sideHitFrames = 0;
-//                 }
-//                 break;
-//             }
-//         }
-//     }
-
-//     void Switch(State s, float timer = 0f)
-//     {
-//         state = s;
-//         stateTimer = timer;
-
-//         if (state == State.Idle)
-//         {
-//             if (animator) animator.SetFloat(SpeedHash, 0f);
-//             stuckTimer    = 0f;
-//             sideHitFrames = 0;
-//             lastCheckPos  = transform.position;
-//         }
-//     }
-// }
-
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 [RequireComponent(typeof(CharacterController))]
 public class EnemyControllerFSM : MonoBehaviour
 {
-    [Header("Refs")]
-    public FixedMap maze;                 // assign at runtime or in Inspector
-    public Animator animator;
+    [Header("Map")]
+    public FixedMap maze;
 
-    [Header("Start Options")]
-    public bool useStartTransform = true; // if true, use startTransform
-    public Transform startTransform;      // drop an Empty here (your screenshot pose)
-    public bool snapToNearestCell = true; // snap to cell center, keeps nav clean
-    public bool keepStartYaw = true;      // keep startTransform Y rotation
+    [Header("Start")]
+    public bool      useStartTransform = false;
+    public Transform startTransform;
+    public bool      snapToNearestCell = true;
+    public bool      keepStartYaw      = true;
 
     [Header("Movement")]
-    public float walkSpeed = 2.2f;
-    public float runSpeed  = 4.0f;
-    public float waitAtCell = 0.4f;
-    public float yOffset   = 0f;
-    public float gravity   = -9.81f;
-    public float arriveEpsilon = 0.03f;
-    const float IdleDuration = 1f;
+    public float moveSpeed = 2.0f;
 
-    [Header("Animation (BlendTree thresholds: 0=Idle, 1=Walk, 2=Run)")]
-    public float animWalkValue = 1f;
-    public float animRunValue  = 2f;
+    [Header("Decision")]
+    [Min(1)] public int minCellsPerDecision = 2;
+    [Min(1)] public int maxCellsPerDecision = 5;
 
-    [Header("Anti-stuck")]
-    public float minProgress      = 0.22f;
-    public float stuckWindow      = 0.25f;
-    public float wallPushStrength = 0.9f;
-    public float recenterSpeed    = 3.0f;
+    [Header("Stuck Detection")]
+    [Tooltip("How often to check if position is actually changing.")]
+    public float stuckCheckInterval = 0.1f;
+    [Tooltip("Minimum horizontal distance that counts as 'moved' during one interval.")]
+    public float minMoveDistance = 0.04f;
+    [Tooltip("Number of consecutive low-movement checks before considering the agent stuck.")]
+    public int   maxStuckChecks = 1;
 
-    enum State { Idle, Choose, Move, Recenter }
-    State state;
-    float stateTimer;
+    [Header("Wall Detection (immediate)")]
+    [Tooltip("If the CharacterController hits a side, immediately pick a new direction.")]
+    public bool immediateOnSideCollision = true;
+    [Tooltip("Extra raycast probe ahead to catch walls before sliding.")]
+    public bool useForwardProbe = true;
+    [Tooltip("How far ahead to probe for a wall (in world units).")]
+    public float wallProbeDistance = 0.25f;
+    [Tooltip("Layers considered solid for the forward probe.")]
+    public LayerMask wallMask = ~0;
 
     CharacterController cc;
-    Vector3 velY;
-    float stuckTimer;
-    Vector3 lastCheckPos;
-    int sideHitFrames;
+    Animator animator;
+    Animation legacyAnim;
 
-    int cx, cy, prevCx, prevCy; // grid cell
-    Vector3 targetPos;
-    float currentSpeed;
+    int speedHash = Animator.StringToHash("Speed");
+    Vector3 targetWorld;
+    bool hasTarget;
 
-    Vector3 wallPushAccum;
+    // Direction commitment state
+    Vector2Int currentDir = Vector2Int.zero;
+    int cellsRemainingInDecision = 0;
 
-    static readonly int SpeedHash = Animator.StringToHash("Speed");
+    // Stuck detection state
+    Vector3 lastPosForStuck;
+    float stuckTimer = 0f;
+    int   lowMoveCount = 0;
+
+    // Recently blocked info
+    Vector2Int lastBlockedDir = Vector2Int.zero;
+    Vector2Int lastBlockedCell = new Vector2Int(int.MinValue, int.MinValue);
+
+    // Cached per-frame data
+    Vector3 lastVelocity = Vector3.zero;
+    CollisionFlags lastCollisionFlags = CollisionFlags.None;
 
     void Awake()
     {
         cc = GetComponent<CharacterController>();
-        if (!animator) animator = GetComponentInChildren<Animator>();
-        if (animator) animator.applyRootMotion = false;
-    }
-
-    void OnEnable()
-    {
-        if (!maze)
-        {
-            // optional: auto-pick a map if you’re using the MapSpawner pattern
-            var spawner = FindObjectOfType<MapSpawner>();
-            if (spawner != null) maze = MapSpawner.ActiveMap;
-        }
+        animator  = GetComponentInChildren<Animator>();
+        legacyAnim = GetComponentInChildren<Animation>();
 
         if (!maze)
-        {
-            Debug.LogError("[Enemy] No FixedMap assigned.");
-            enabled = false;
-            return;
-        }
-        StartCoroutine(BootWhenMapReady());
+            maze = MapSpawner.ActiveMap ? MapSpawner.ActiveMap : FindFirstByType<FixedMap>();
     }
 
-    IEnumerator BootWhenMapReady()
+    void Start()
     {
-        yield return new WaitUntil(() => maze != null && maze.IsReady);
-
-        // Choose spawn
-        if (useStartTransform && startTransform != null)
+        if (useStartTransform && startTransform)
         {
-            // 1) find the nearest cell to your desired world position
-            Vector3 desired = startTransform.position;
-            int bx, by; Vector3 center;
-            FindNearestCell(desired, out bx, out by, out center);
-
-            cx = prevCx = bx;
-            cy = prevCy = by;
-
-            // 2) place at the cell center (safer for nav) or exactly at desired
-            Vector3 spawn = snapToNearestCell ? center : desired;
-            spawn = ClampInsideInnerBounds(spawn + Vector3.up * yOffset);
-            transform.position = spawn;
-
-            // 3) keep starting yaw if requested
-            if (keepStartYaw)
-            {
-                var e = transform.eulerAngles;
-                e.y = startTransform.eulerAngles.y;
-                transform.eulerAngles = e;
-            }
-        }
-        else
-        {
-            // fallback: top-right cell
-            cx = Mathf.Max(0, maze.width - 1);
-            cy = Mathf.Max(0, maze.height - 1);
-            prevCx = cx; prevCy = cy;
-
-            var spawn = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-            transform.position = spawn;
+            transform.SetPositionAndRotation(
+                startTransform.position,
+                keepStartYaw ? Quaternion.Euler(0f, startTransform.eulerAngles.y, 0f) : startTransform.rotation);
         }
 
-        // controller + bookkeeping
-        cc.stepOffset = 0.25f;
-        cc.skinWidth  = 0.02f;
-        lastCheckPos  = transform.position;
-        stuckTimer    = 0f;
-        sideHitFrames = 0;
-        wallPushAccum = Vector3.zero;
+        if (maze && snapToNearestCell && maze.TryWorldToCell(transform.position, out var cx, out var cy))
+            transform.position = maze.CellCenterWorld(cx, cy);
 
-        if (animator) animator.SetFloat(SpeedHash, 0f);
-        Switch(State.Idle, IdleDuration);
-    }
+        lastPosForStuck = transform.position;
 
-    // Find nearest map cell to a world position
-    void FindNearestCell(Vector3 world, out int bestX, out int bestY, out Vector3 bestCenter)
-    {
-        float best = float.PositiveInfinity;
-        bestX = 0; bestY = 0; bestCenter = maze.CellCenter(0,0);
-
-        for (int y = 0; y < maze.height; y++)
-        for (int x = 0; x < maze.width;  x++)
-        {
-            var c = maze.CellCenter(x, y);
-            float d = (new Vector3(c.x, world.y, c.z) - new Vector3(world.x, world.y, world.z)).sqrMagnitude;
-            if (d < best)
-            {
-                best = d; bestX = x; bestY = y; bestCenter = c;
-            }
-        }
-    }
-
-    Vector3 ClampInsideInnerBounds(Vector3 pos)
-    {
-        var ib = maze.GetInnerBounds();
-        float m = cc ? cc.radius : 0.5f;
-        pos.x = Mathf.Clamp(pos.x, ib.min.x + m, ib.max.x - m);
-        pos.z = Mathf.Clamp(pos.z, ib.min.z + m, ib.max.z - m);
-        return pos;
-    }
-
-    void OnControllerColliderHit(ControllerColliderHit hit)
-    {
-        var n = hit.normal; n.y = 0f;
-        if (n.sqrMagnitude > 0.0001f)
-            wallPushAccum += n.normalized;
+        PickNewTarget();
+        UpdateAnim(0f);
     }
 
     void Update()
     {
-        if (!cc || !maze || !maze.IsReady) return;
+        if (!maze) return;
 
-        if (cc.isGrounded && velY.y < 0f) velY.y = -2f;
-        velY.y += gravity * Time.deltaTime;
-
-        Vector3 wallPush = Vector3.zero;
-        if (wallPushAccum.sqrMagnitude > 0.0001f)
+        // Proactive wall probe: if something is in front of our committed direction, reroute now.
+        if (useForwardProbe && currentDir != Vector2Int.zero && IsWallAhead(out _))
         {
-            wallPush = wallPushAccum.normalized * wallPushStrength * Time.deltaTime;
-            wallPushAccum = Vector3.zero;
+            MarkBlockedHere(currentDir);
+            BreakCommitmentAndReroute();
         }
 
-        switch (state)
+        var to = targetWorld - transform.position;
+        var dist = to.magnitude;
+
+        if (!hasTarget || dist < 0.1f)
+            PickNewTarget();
+
+        var dir = (targetWorld - transform.position);
+        dir.y = 0f;
+        var step = Mathf.Min(dir.magnitude, moveSpeed * Time.deltaTime);
+        var vel = dir.normalized * (step > 0f ? moveSpeed : 0f);
+
+        if (vel.sqrMagnitude > 0f)
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(dir), 720f * Time.deltaTime);
+
+        // SimpleMove returns a bool (grounded). Read collision flags from the controller afterward.
+        var grounded = cc.SimpleMove(vel);
+        lastCollisionFlags = cc.collisionFlags;
+        lastVelocity = vel;
+
+        UpdateAnim(vel.magnitude);
+
+        // Immediate response to side collision while intending to move.
+        if (immediateOnSideCollision && (lastCollisionFlags & CollisionFlags.Sides) != 0 && vel.sqrMagnitude > 0.0001f)
         {
-            case State.Idle:
-                stateTimer -= Time.deltaTime;
-                if (stateTimer <= 0f) Switch(State.Choose);
-                cc.Move(velY * Time.deltaTime + wallPush);
-                break;
+            if (currentDir != Vector2Int.zero) MarkBlockedHere(currentDir);
+            BreakCommitmentAndReroute();
+        }
 
-            case State.Choose:
+        CheckStuckAndRecover();
+    }
+
+    void CheckStuckAndRecover()
+    {
+        stuckTimer += Time.deltaTime;
+        if (stuckTimer < stuckCheckInterval) return;
+
+        Vector3 now = transform.position;
+        Vector2 a = new Vector2(lastPosForStuck.x, lastPosForStuck.z);
+        Vector2 b = new Vector2(now.x, now.z);
+        float moved = Vector2.Distance(a, b);
+
+        if (moved < minMoveDistance)
+        {
+            lowMoveCount++;
+
+            if (maze && currentDir != Vector2Int.zero && maze.TryWorldToCell(transform.position, out var cx, out var cy))
             {
-                var neighbors = new List<(int, int)>(maze.OpenNeighbors(cx, cy).Select(n => (n.nx, n.ny)));
-
-                if (neighbors.Count > 1)
-                    neighbors.RemoveAll(n => n.Item1 == prevCx && n.Item2 == prevCy);
-
-                if (neighbors.Count == 0)
-                {
-                    if (prevCx != cx || prevCy != cy) neighbors.Add((prevCx, prevCy));
-                    else { Switch(State.Idle, IdleDuration); break; }
-                }
-
-                var next = neighbors[Random.Range(0, neighbors.Count)];
-                prevCx = cx; prevCy = cy;
-                cx = next.Item1; cy = next.Item2;
-
-                targetPos = ClampInsideInnerBounds(maze.CellCenter(cx, cy) + Vector3.up * yOffset);
-
-                bool doRun = Random.value < 0.5f;
-                currentSpeed = doRun ? runSpeed : walkSpeed;
-                if (animator) animator.SetFloat(SpeedHash, doRun ? animRunValue : animWalkValue);
-
-                Switch(State.Move);
-                break;
+                lastBlockedCell = new Vector2Int(cx, cy);
+                lastBlockedDir  = currentDir;
             }
 
-            case State.Move:
+            if (lowMoveCount >= maxStuckChecks)
             {
-                var to = targetPos - transform.position;
-                Vector3 horizontal = new Vector3(to.x, 0f, to.z);
-
-                if (horizontal.sqrMagnitude > 0.0001f)
-                {
-                    var look = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, look, 10f * Time.deltaTime);
-                }
-
-                Vector3 step = horizontal.normalized * currentSpeed * Time.deltaTime;
-                var flags = cc.Move(step + velY * Time.deltaTime + wallPush);
-
-                if ((flags & CollisionFlags.Sides) != 0) sideHitFrames++;
-                else sideHitFrames = 0;
-
-                if (horizontal.sqrMagnitude <= arriveEpsilon * arriveEpsilon)
-                {
-                    if (animator) animator.SetFloat(SpeedHash, 0f);
-                    Switch(State.Idle, IdleDuration);
-                    stuckTimer = 0f;
-                    lastCheckPos = transform.position;
-                    sideHitFrames = 0;
-                    break;
-                }
-
-                stuckTimer += Time.deltaTime;
-                if (stuckTimer >= stuckWindow)
-                {
-                    float progressed = Vector3.Distance(transform.position, lastCheckPos);
-                    lastCheckPos = transform.position;
-                    stuckTimer = 0f;
-
-                    bool scraping = sideHitFrames > 6;
-                    if (progressed < minProgress || scraping)
-                    {
-                        if (animator) animator.SetFloat(SpeedHash, 0f);
-                        Switch(State.Recenter, 0.15f);
-                    }
-                }
-                break;
+                BreakCommitmentAndReroute();
+                lowMoveCount = 0;
+                lastPosForStuck = now;
+                stuckTimer = 0f;
+                return;
             }
+        }
+        else
+        {
+            lowMoveCount = 0;
+        }
 
-            case State.Recenter:
-            {
-                Vector3 center = maze.CellCenter(cx, cy) + Vector3.up * yOffset;
-                Vector3 toCenter = center - transform.position;
-                Vector3 horiz = new Vector3(toCenter.x, 0f, toCenter.z);
+        lastPosForStuck = now;
+        stuckTimer = 0f;
+    }
 
-                if (horiz.sqrMagnitude > arriveEpsilon * arriveEpsilon)
-                {
-                    Vector3 step = horiz.normalized * recenterSpeed * Time.deltaTime;
-                    cc.Move(step + velY * Time.deltaTime + wallPush);
-                    Switch(State.Idle, 1.5f);
-                }
-                else
-                {
-                    Switch(State.Idle, IdleDuration);
-                    sideHitFrames = 0;
-                }
-                break;
-            }
+    void BreakCommitmentAndReroute()
+    {
+        cellsRemainingInDecision = 0;
+        currentDir = Vector2Int.zero;
+        PickNewTarget();
+    }
+
+    bool IsWallAhead(out RaycastHit hit)
+    {
+        hit = default;
+        if (!cc) return false;
+        if (currentDir == Vector2Int.zero) return false;
+
+        Vector3 origin = transform.position + Vector3.up * (cc.height * 0.5f);
+        Vector3 fwd = new Vector3(currentDir.x, 0f, currentDir.y).normalized;
+        float dist = wallProbeDistance + cc.radius + cc.skinWidth;
+
+        if (Physics.Raycast(origin, fwd, out hit, dist, wallMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        Vector3 top = transform.position + Vector3.up * (cc.height - cc.radius);
+        Vector3 bottom = transform.position + Vector3.up * cc.radius;
+        if (Physics.CapsuleCast(bottom, top, cc.radius * 0.95f, fwd, out hit, wallProbeDistance, wallMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        return false;
+    }
+
+    void MarkBlockedHere(Vector2Int dir)
+    {
+        if (!maze) return;
+        if (maze.TryWorldToCell(transform.position, out var cx, out var cy))
+        {
+            lastBlockedCell = new Vector2Int(cx, cy);
+            lastBlockedDir  = dir;
         }
     }
 
-    void Switch(State s, float timer = 0f)
+    void PickNewTarget()
     {
-        state = s;
-        stateTimer = timer;
+        if (!maze) { hasTarget = false; return; }
 
-        if (state == State.Idle)
+        int cx, cy;
+        if (!maze.TryWorldToCell(transform.position, out cx, out cy))
         {
-            if (animator) animator.SetFloat(SpeedHash, 0f);
-            stuckTimer    = 0f;
-            sideHitFrames = 0;
-            lastCheckPos  = transform.position;
+            cx = Mathf.Clamp(Mathf.RoundToInt(transform.position.x), 0, maze.width  - 1);
+            cy = Mathf.Clamp(Mathf.RoundToInt(transform.position.z), 0, maze.height - 1);
         }
+
+        // If still committed, continue in the same direction when possible.
+        if (cellsRemainingInDecision > 0 && currentDir != Vector2Int.zero)
+        {
+            int nx = Mathf.Clamp(cx + currentDir.x, 0, maze.width  - 1);
+            int ny = Mathf.Clamp(cy + currentDir.y, 0, maze.height - 1);
+
+            if (nx != cx || ny != cy)
+            {
+                cellsRemainingInDecision--;
+                targetWorld = maze.CellCenterWorld(nx, ny);
+                hasTarget = true;
+                return;
+            }
+            else
+            {
+                cellsRemainingInDecision = 0; // force new decision
+            }
+        }
+
+        var dirs = new List<Vector2Int> { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+
+        // Prefer not to immediately reverse unless necessary.
+        if (currentDir != Vector2Int.zero)
+            dirs.Remove(-currentDir);
+
+        // Avoid retrying a direction that was just blocked at this cell.
+        if (lastBlockedCell.x != int.MinValue && lastBlockedCell == new Vector2Int(cx, cy))
+            dirs.Remove(lastBlockedDir);
+
+        // Remove directions that would keep us in place due to borders.
+        for (int i = dirs.Count - 1; i >= 0; i--)
+        {
+            int tx = Mathf.Clamp(cx + dirs[i].x, 0, maze.width  - 1);
+            int ty = Mathf.Clamp(cy + dirs[i].y, 0, maze.height - 1);
+            if (tx == cx && ty == cy)
+                dirs.RemoveAt(i);
+        }
+
+        // Final safety: if a forward probe says blocked, cull that dir too.
+        if (useForwardProbe)
+        {
+            for (int i = dirs.Count - 1; i >= 0; i--)
+            {
+                var d = dirs[i];
+                Vector3 fwd = new Vector3(d.x, 0f, d.y).normalized;
+                if (ProbeBlocked(fwd))
+                    dirs.RemoveAt(i);
+            }
+        }
+
+        if (dirs.Count == 0)
+            dirs.AddRange(new[] { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down });
+
+        var ndir = dirs[Random.Range(0, dirs.Count)];
+        currentDir = ndir;
+        cellsRemainingInDecision = Mathf.Max(1, Random.Range(minCellsPerDecision, maxCellsPerDecision + 1)) - 1;
+
+        int nx2 = Mathf.Clamp(cx + ndir.x, 0, maze.width  - 1);
+        int ny2 = Mathf.Clamp(cy + ndir.y, 0, maze.height - 1);
+
+        targetWorld = maze.CellCenterWorld(nx2, ny2);
+        hasTarget = true;
+    }
+
+    bool ProbeBlocked(Vector3 fwd)
+    {
+        if (!cc) return false;
+        Vector3 origin = transform.position + Vector3.up * (cc.height * 0.5f);
+        float dist = wallProbeDistance + cc.radius + cc.skinWidth;
+        if (Physics.Raycast(origin, fwd, dist, wallMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        Vector3 top = transform.position + Vector3.up * (cc.height - cc.radius);
+        Vector3 bottom = transform.position + Vector3.up * cc.radius;
+        if (Physics.CapsuleCast(bottom, top, cc.radius * 0.95f, fwd, wallProbeDistance, wallMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        return false;
+    }
+
+    void UpdateAnim(float speed)
+    {
+        if (animator)
+        {
+            if (HasParam(animator, speedHash))
+                animator.SetFloat(speedHash, speed);
+            return;
+        }
+
+        if (legacyAnim)
+        {
+            if (speed > 0.1f && legacyAnim.GetClip("Walk"))
+                legacyAnim.CrossFade("Walk", 0.1f);
+            else if (legacyAnim.GetClip("Idle"))
+                legacyAnim.CrossFade("Idle", 0.1f);
+        }
+    }
+
+    static bool HasParam(Animator anim, int hash)
+    {
+        foreach (var p in anim.parameters)
+            if (p.nameHash == hash) return true;
+        return false;
+    }
+
+    // ---------- helpers to use new APIs on 2023+ while staying compatible ----------
+    static T FindFirstByType<T>() where T : Object
+    {
+#if UNITY_2023_1_OR_NEWER
+        return Object.FindFirstObjectByType<T>();
+#else
+#pragma warning disable CS0618
+        return Object.FindObjectOfType<T>();
+#pragma warning restore CS0618
+#endif
     }
 }
