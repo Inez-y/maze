@@ -19,6 +19,16 @@ public class FPPlayerController : MonoBehaviour
     public string noclipActionName = "NoclipToggle"; // Button
     public string resetActionName  = "Reset";        // Button
 
+    // Sound effect
+    PlayerSoundController sound;
+    [Header("Sound Settings")]
+    public float stepInterval = 0.5f;     
+    public float wallSoundCooldown = 0.5f;
+    float lastStepTime;
+    float lastWallSoundTime;
+
+
+
     CharacterController cc;
     PlayerInput playerInput;
     InputAction moveAction, noclipAction, resetAction;
@@ -36,6 +46,7 @@ public class FPPlayerController : MonoBehaviour
     {
         cc = GetComponent<CharacterController>();
         playerInput = GetComponent<PlayerInput>();
+        sound = GetComponent<PlayerSoundController>(); 
 
         if (cam == null)
         {
@@ -69,6 +80,13 @@ public class FPPlayerController : MonoBehaviour
                 if (moveAction == null) Debug.LogError($"FPPlayerController: Move action '{moveActionName}' not found.");
                 if (cam == null) Debug.LogWarning("FPPlayerController: No camera reference; movement will fall back to player forward.");
         #endif
+    }
+
+    void Die()
+    {
+        if (cc) cc.enabled = false;
+        Destroy(gameObject, 1f);
+        ResetToStart();
     }
 
     void OnEnable()
@@ -113,9 +131,38 @@ public class FPPlayerController : MonoBehaviour
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
         if (noclip)
+        {
             transform.position += dir * moveSpeed * Time.deltaTime;
+        }
         else
+        {
             cc.SimpleMove(dir * moveSpeed);
+
+            // footstep
+            if (sound != null && cc.isGrounded && dir.sqrMagnitude > 0.01f)
+            {
+                if (Time.time - lastStepTime > stepInterval)
+                {
+                    sound.PlayWalk();
+                    lastStepTime = Time.time;
+                }
+            }
+        }
+
+    }
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (sound == null) return;
+
+        // Consider it a "wall" if the surface is mostly vertical, not floor/ceiling.
+        bool isWall =
+            Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
+
+        if (isWall && Time.time - lastWallSoundTime > wallSoundCooldown)
+        {
+            sound.PlayWallCollision();
+            lastWallSoundTime = Time.time;
+        }
     }
 
     void ToggleNoclip()
@@ -139,8 +186,6 @@ public class FPPlayerController : MonoBehaviour
             cam.localRotation = camStartLocalRot;
 
         #if CINEMACHINE
-            // If using Cinemachine POV or FreeLook, also zero its axes so mouse delta
-            // doesn't immediately push you away from the reset orientation.
             var pov = cam.GetComponentInParent<Cinemachine.CinemachinePOV>();
             if (pov != null)
             {
