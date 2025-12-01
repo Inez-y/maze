@@ -1,16 +1,29 @@
 using UnityEngine;
 
+[RequireComponent(typeof(AudioSource))]
 public class EnemySoundController : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [Header("Sound Clips")]
+    public AudioClip deathSFX;
+    public AudioClip respawnSFX;
+
+    private AudioSource source;
+
+    void Awake()
     {
-        
+        source = GetComponent<AudioSource>();
+        source.playOnAwake = false;
     }
 
-    // Update is called once per frame
-    void Update()
+    public void PlayDeath()
     {
-        
+        if (deathSFX != null)
+            source.PlayOneShot(deathSFX);
+    }
+
+    public void PlayRespawn()
+    {
+        if (respawnSFX != null)
+            source.PlayOneShot(respawnSFX);
     }
 }

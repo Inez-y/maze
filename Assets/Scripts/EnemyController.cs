@@ -33,6 +33,9 @@ public class EnemyControllerFSM : MonoBehaviour
     bool isDead = false;
     public GameObject enemyPrefab;  // respawn enemy
 
+    [Header("Sound Controller Import")]
+    EnemySoundController sound;
+
 
     [Header("Stuck Detection")]
     [Tooltip("How often to check if position is actually changing.")]
@@ -83,6 +86,7 @@ public class EnemyControllerFSM : MonoBehaviour
         cc = GetComponent<CharacterController>();
         animator  = GetComponentInChildren<Animator>();
         legacyAnim = GetComponentInChildren<Animation>();
+        sound = GetComponent<EnemySoundController>();
 
         if (!maze)
             maze = MapSpawner.ActiveMap ? MapSpawner.ActiveMap : FindFirstByType<FixedMap>();
@@ -133,14 +137,19 @@ public class EnemyControllerFSM : MonoBehaviour
     {
         isDead = true;
         if (cc) cc.enabled = false;
+        if (sound) sound.PlayDeath();
         Destroy(gameObject, 1f);
         Invoke(nameof(RespawnSelf), 5f);
     }
 
     void RespawnSelf()
     {
-        if (enemyPrefab != null)
-            Instantiate(enemyPrefab, transform.position, transform.rotation);
+        var newEnemy = Instantiate(enemyPrefab, transform.position, transform.rotation);
+
+        if (newEnemy.TryGetComponent(out EnemySoundController s))
+            s.PlayRespawn();  // Play respawn sound
+        
+        Debug.Log("Enemy Respawned");
     }
 
     void Update()
