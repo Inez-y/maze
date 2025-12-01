@@ -27,6 +27,13 @@ public class EnemyControllerFSM : MonoBehaviour
     [Min(1)] public int minCellsPerDecision = 2;
     [Min(1)] public int maxCellsPerDecision = 5;
 
+    [Header("Health")]
+    public int maxHP = 3; 
+    int currentHP;
+    bool isDead = false;
+    public GameObject enemyPrefab;  // respawn enemy
+
+
     [Header("Stuck Detection")]
     [Tooltip("How often to check if position is actually changing.")]
     public float stuckCheckInterval = 0.1f;
@@ -44,6 +51,7 @@ public class EnemyControllerFSM : MonoBehaviour
     public float wallProbeDistance = 0.25f;
     [Tooltip("Layers considered solid for the forward probe.")]
     public LayerMask wallMask = ~0;
+
 
     CharacterController cc;
     Animator animator;
@@ -98,6 +106,9 @@ public class EnemyControllerFSM : MonoBehaviour
         UpdateAnim(0f);
 
         if (useRandomSpeed) StartCoroutine(RandomizeSpeedRoutine());
+
+        currentHP = maxHP;
+
     }
     
     IEnumerator RandomizeSpeedRoutine()
@@ -109,9 +120,34 @@ public class EnemyControllerFSM : MonoBehaviour
         }
     }
 
+    public void TakeDamage(int amount = 1)
+    {
+        if (isDead) return;
+
+        currentHP -= amount;
+        if (currentHP <= 0)
+            Die();
+    }
+
+    void Die()
+    {
+        isDead = true;
+        if (cc) cc.enabled = false;
+        Destroy(gameObject, 1f);
+        Invoke(nameof(RespawnSelf), 5f);
+    }
+
+    void RespawnSelf()
+    {
+        if (enemyPrefab != null)
+            Instantiate(enemyPrefab, transform.position, transform.rotation);
+    }
+
     void Update()
     {
         if (!maze) return;
+        if (isDead) return;
+
 
         // Proactive wall probe: if something is in front of our committed direction, reroute now.
         if (useForwardProbe && currentDir != Vector2Int.zero && IsWallAhead(out _))
