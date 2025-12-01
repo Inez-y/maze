@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;  
 using System.Collections.Generic;
 
 [RequireComponent(typeof(CharacterController))]
@@ -15,6 +16,12 @@ public class EnemyControllerFSM : MonoBehaviour
 
     [Header("Movement")]
     public float moveSpeed = 2.0f;
+
+    [Header("Random Speed")]
+    public bool  useRandomSpeed = true;
+    public float minRandomSpeed = 0f;
+    public float maxRandomSpeed = 2.5f;
+    public float randomSpeedInterval = 2f;
 
     [Header("Decision")]
     [Min(1)] public int minCellsPerDecision = 2;
@@ -89,6 +96,17 @@ public class EnemyControllerFSM : MonoBehaviour
 
         PickNewTarget();
         UpdateAnim(0f);
+
+        if (useRandomSpeed) StartCoroutine(RandomizeSpeedRoutine());
+    }
+    
+    IEnumerator RandomizeSpeedRoutine()
+    {
+        while (true)
+        {
+            moveSpeed = Random.Range(minRandomSpeed, maxRandomSpeed);
+            yield return new WaitForSeconds(randomSpeedInterval);
+        }
     }
 
     void Update()
