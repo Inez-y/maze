@@ -5,7 +5,8 @@ using UnityEngine.InputSystem;
 public class BGMController : MonoBehaviour
 {
     [Header("Sound Clips")]
-    public AudioClip regularBGM;
+    public AudioClip dayBGM;
+    public AudioClip nightBGM;
 
     private AudioSource source;
 
@@ -14,10 +15,11 @@ public class BGMController : MonoBehaviour
         source = GetComponent<AudioSource>();
         source.playOnAwake = false;
 
-        if (regularBGM != null)
+        // need day/night logic
+        if (dayBGM != null)
         {
             source.loop = true;           
-            source.clip = regularBGM;
+            source.clip = dayBGM;
             source.Play();                
         }
     }
@@ -33,7 +35,7 @@ public class BGMController : MonoBehaviour
         // ]
         if (Keyboard.current.rightBracketKey.wasPressedThisFrame)
         {
-            if (regularBGM != null && !source.isPlaying)
+            if (dayBGM != null && !source.isPlaying)
                 source.Play();
         }
     }

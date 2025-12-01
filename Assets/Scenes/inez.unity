@@ -1288,7 +1288,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 106997dc1c7444eceaf026a0fbbe11a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  regularBGM: {fileID: 8300000, guid: 8ed09b80c75b84e19af7dce60cda218b, type: 3}
+  dayBGM: {fileID: 8300000, guid: cc0fb114dff604e18a83c477fa876a0f, type: 3}
+  nightBGM: {fileID: 8300000, guid: 8ed09b80c75b84e19af7dce60cda218b, type: 3}
 --- !u!1001 &1479414872856983207
 PrefabInstance:
   m_ObjectHideFlags: 0
