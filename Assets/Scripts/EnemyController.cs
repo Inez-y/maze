@@ -81,6 +81,11 @@ public class EnemyControllerFSM : MonoBehaviour
     Vector3 lastVelocity = Vector3.zero;
     CollisionFlags lastCollisionFlags = CollisionFlags.None;
 
+    // Death logic
+    Vector3 deathPos;
+    Quaternion deathRot;
+
+
     void Awake()
     {
         cc = GetComponent<CharacterController>();
@@ -129,28 +134,59 @@ public class EnemyControllerFSM : MonoBehaviour
         if (isDead) return;
 
         currentHP -= amount;
+        Debug.Log("Enemy HP: " + currentHP);
         if (currentHP <= 0)
             Die();
     }
 
     void Die()
     {
+        if (isDead) return;
         isDead = true;
+
+        // remember where it died
+        deathPos = transform.position;
+        deathRot = transform.rotation;
+
         if (cc) cc.enabled = false;
         if (sound) sound.PlayDeath();
-        Destroy(gameObject, 1f);
+
+        // make enemy disappear right away 
+        HideVisuals();
+
+        // respawn in 5 seconds
         Invoke(nameof(RespawnSelf), 5f);
     }
 
+
+    void HideVisuals()
+    {
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = false;
+
+        foreach (var a in GetComponentsInChildren<Animator>())
+            a.enabled = false;
+    }
+
+
+
+
     void RespawnSelf()
     {
-        var newEnemy = Instantiate(enemyPrefab, transform.position, transform.rotation);
+        // spawn new enemy at the exact spot / rotation it died
+        var newEnemy = Instantiate(enemyPrefab, deathPos, deathRot);
 
         if (newEnemy.TryGetComponent(out EnemySoundController s))
-            s.PlayRespawn();  // Play respawn sound
-        
+            s.PlayRespawn();
+
         Debug.Log("Enemy Respawned");
+
+        // now we can destroy this dead controller object
+        Destroy(gameObject);
     }
+
+
+
 
     void Update()
     {

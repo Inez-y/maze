@@ -29,11 +29,23 @@ public class BallController : MonoBehaviour
     {
         Collider other = collision.collider;
 
-        // 1) Hit enemy → sound, score, destroy immediately
+        // 1) Hit enemy → sound, score, HP -1, destroy immediately
         if (other.CompareTag("Enemy"))
         {
             if (enemyHitSFX != null)
                 AudioSource.PlayClipAtPoint(enemyHitSFX, transform.position);
+
+           // find the enemy controller on the thing we hit
+            var enemyCtrl = other.GetComponentInParent<EnemyControllerFSM>();
+            if (enemyCtrl != null)
+            {
+                enemyCtrl.TakeDamage();      
+                Debug.Log("Enemy HP damaged by ball");
+            }
+            else
+            {
+                Debug.LogWarning("Hit object tagged Enemy but no EnemyControllerFSM found on it or its parents.");
+            }
 
             if (ScoreManager.Instance != null)
             {
