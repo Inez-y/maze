@@ -27,11 +27,16 @@ public class FPPlayerController : MonoBehaviour
     float lastStepTime;
     float lastWallSoundTime;
 
+    [Header("Ball Throw")]
+    public GameObject ballPrefab;         
+    public float throwForce = 15f;
+    public string throwActionName = "Throw";   
 
 
     CharacterController cc;
     PlayerInput playerInput;
     InputAction moveAction, noclipAction, resetAction;
+    InputAction throwAction;  
 
     Vector3    startPos;
     Quaternion startRot;
@@ -76,6 +81,13 @@ public class FPPlayerController : MonoBehaviour
         if (noclipAction != null) noclipAction.performed += _ => ToggleNoclip();
         if (resetAction  != null) resetAction.performed  += _ => ResetToStart();
 
+        throwAction  = map.FindAction(throwActionName, false);
+
+        #if UNITY_EDITOR
+        if (throwAction == null) Debug.LogError($"FPPlayerController: Throw action '{throwActionName}' not found.");
+        #endif
+
+
         #if UNITY_EDITOR
                 if (moveAction == null) Debug.LogError($"FPPlayerController: Move action '{moveActionName}' not found.");
                 if (cam == null) Debug.LogWarning("FPPlayerController: No camera reference; movement will fall back to player forward.");
@@ -94,6 +106,7 @@ public class FPPlayerController : MonoBehaviour
         moveAction?.Enable();
         noclipAction?.Enable();
         resetAction?.Enable();
+        throwAction?.Enable();  
     }
 
     void OnDisable()
@@ -101,6 +114,7 @@ public class FPPlayerController : MonoBehaviour
         moveAction?.Disable();
         noclipAction?.Disable();
         resetAction?.Disable();
+        throwAction?.Disable();  
     }
 
     void Update()
@@ -149,12 +163,36 @@ public class FPPlayerController : MonoBehaviour
             }
         }
 
+        // Throw a ball
+        if (throwAction != null && throwAction.WasPerformedThisFrame())
+        {
+            ThrowBall();
+        }
     }
+
+    void ThrowBall()
+    {
+        if (ballPrefab == null || cam == null) return;
+
+        // spawn a bit in front of the camera so it doesn’t collide with the player
+        Transform origin = cam;
+        Vector3 spawnPos = origin.position + origin.forward * 0.5f;
+
+        GameObject ball = Instantiate(ballPrefab, spawnPos, Quaternion.identity);
+
+        if (ball.TryGetComponent<Rigidbody>(out Rigidbody rb))
+        {
+            rb.linearVelocity = origin.forward * throwForce;
+        }
+
+        Debug.Log("Throw!");
+    }
+
+
+
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
         if (sound == null) return;
-
-        // Consider it a "wall" if the surface is mostly vertical, not floor/ceiling.
         bool isWall =
             Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
 
