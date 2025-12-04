@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 4986922956343830287}
   - component: {fileID: 430783190349208236}
   - component: {fileID: 1603726521422883870}
+  - component: {fileID: 403185617490590475}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -150,5 +151,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 4
-  mouseSensitivity: 100
   cam: {fileID: 0}
+  alignYawToCamera: 1
+  moveActionName: Move
+  noclipActionName: NoclipToggle
+  resetActionName: Reset
+  stepInterval: 0.5
+  wallSoundCooldown: 0.5
+  ballPrefab: {fileID: 8493030991146513613, guid: a5297b1e3a3d64bf3ad4977af1b33535, type: 3}
+  throwForce: 15
+  throwActionName: Throw
+  deathPanel: {fileID: 538898566143316436, guid: cc851d7c608eb49c19a56d533194799c, type: 3}
+--- !u!114 &403185617490590475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1724188539349050125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_NotificationBehavior: 0
+  m_UIInputModule: {fileID: 0}
+  m_DeviceLostEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_DeviceRegainedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ControlsChangedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ActionEvents: []
+  m_NeverAutoSwitchControlSchemes: 0
+  m_DefaultControlScheme: 
+  m_DefaultActionMap: 
+  m_SplitScreenIndex: -1
+  m_Camera: {fileID: 0}

@@ -170,7 +170,6 @@ public class EnemyControllerFSM : MonoBehaviour
 
 
 
-
     void RespawnSelf()
     {
         // spawn new enemy at the exact spot / rotation it died
@@ -181,9 +180,10 @@ public class EnemyControllerFSM : MonoBehaviour
 
         Debug.Log("Enemy Respawned");
 
-        // now we can destroy this dead controller object
+        // now it's safe to destroy this dead one
         Destroy(gameObject);
     }
+
 
 
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement; 
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
@@ -32,6 +33,12 @@ public class FPPlayerController : MonoBehaviour
     public float throwForce = 15f;
     public string throwActionName = "Throw";   
 
+    [Header("Death UI")]
+    public GameObject deathPanel;  
+
+
+    // dead
+    bool isDead = false;   
 
     CharacterController cc;
     PlayerInput playerInput;
@@ -52,6 +59,9 @@ public class FPPlayerController : MonoBehaviour
         cc = GetComponent<CharacterController>();
         playerInput = GetComponent<PlayerInput>();
         sound = GetComponent<PlayerSoundController>(); 
+
+        if (deathPanel != null)
+            deathPanel.SetActive(false);
 
         if (cam == null)
         {
@@ -96,10 +106,22 @@ public class FPPlayerController : MonoBehaviour
 
     void Die()
     {
+        if (isDead) return;
+        isDead = true;
+
+        // stop movement
         if (cc) cc.enabled = false;
-        Destroy(gameObject, 1f);
-        ResetToStart();
+
+        // show death UI
+        if (deathPanel != null)
+            deathPanel.SetActive(true);
+
+        
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
+
+
 
     void OnEnable()
     {
@@ -119,6 +141,18 @@ public class FPPlayerController : MonoBehaviour
 
     void Update()
     {
+        if (isDead)
+        {
+            if (Keyboard.current.rKey.wasPressedThisFrame)
+            {
+                // full scene restart:
+                var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                UnityEngine.SceneManagement.SceneManager.LoadScene(scene.buildIndex);
+                isDead = false;
+            }
+            return;
+        }
+
         // Keep player body aligned to camera yaw if desired
         if (alignYawToCamera && cam != null)
         {
@@ -192,16 +226,24 @@ public class FPPlayerController : MonoBehaviour
 
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        if (sound == null) return;
-        bool isWall =
-            Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
+        // enemy kill
+        if (hit.collider.CompareTag("Enemy"))
+        {
+            Die();
+            return;
+        }
 
+        if (sound == null) return;
+
+        bool isWall = Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
         if (isWall && Time.time - lastWallSoundTime > wallSoundCooldown)
         {
             sound.PlayWallCollision();
             lastWallSoundTime = Time.time;
         }
     }
+
+
 
     void ToggleNoclip()
     {
