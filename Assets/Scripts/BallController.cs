@@ -25,7 +25,6 @@ public class BallController : MonoBehaviour
         Destroy(gameObject, 1f);   
     }
 
-
     void OnCollisionEnter(Collision collision)
     {
         Collider other = collision.collider;
@@ -36,12 +35,22 @@ public class BallController : MonoBehaviour
             if (enemyHitSFX != null)
                 AudioSource.PlayClipAtPoint(enemyHitSFX, transform.position);
 
-            Destroy(gameObject);
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.AddScore(scoreValue);
+                Debug.Log("Score is now: " + ScoreManager.Instance.Score);
+            }
+            else
+            {
+                Debug.LogWarning("ScoreManager.Instance is null!");
+            }
+
+            Destroy(gameObject);    
             Debug.Log("Ball hits the enemy!!");
             return;
         }
 
-        // 2) Hit wall or floor → bounce sound (Rigidbody + PhysicMaterial handles the bounce)
+        // 2) Hit wall or floor → bounce sound
         if (other.CompareTag("Wall") || other.CompareTag("Floor"))
         {
             Debug.Log("Ball hits wall or floor!");
