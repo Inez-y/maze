@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.InputSystem;   
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(AudioSource))]
 public class BGMController : MonoBehaviour
@@ -8,34 +8,38 @@ public class BGMController : MonoBehaviour
     public AudioClip dayBGM;
     public AudioClip nightBGM;
 
+    [Header("Mode")]
+    public bool useNightBGM = false;  
+
     private AudioSource source;
 
     void Awake()
     {
         source = GetComponent<AudioSource>();
         source.playOnAwake = false;
+        source.loop = true;
 
-        // need day/night logic
-        if (dayBGM != null)
+        // choose clip based on mode
+        AudioClip clipToPlay = useNightBGM ? nightBGM : dayBGM;
+        if (clipToPlay != null)
         {
-            source.loop = true;           
-            source.clip = dayBGM;
-            source.Play();                
+            source.clip = clipToPlay;
+            source.Play();
         }
     }
 
     void Update()
     {
-        // [
+        // [ stop
         if (Keyboard.current.leftBracketKey.wasPressedThisFrame)
         {
             source.Stop();
         }
 
-        // ]
+        // ] play (resume current clip)
         if (Keyboard.current.rightBracketKey.wasPressedThisFrame)
         {
-            if (dayBGM != null && !source.isPlaying)
+            if (source.clip != null && !source.isPlaying)
                 source.Play();
         }
     }

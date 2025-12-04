@@ -330,6 +330,7 @@ GameObject:
   - component: {fileID: 330585548}
   - component: {fileID: 330585550}
   - component: {fileID: 330585549}
+  - component: {fileID: 330585551}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -501,6 +502,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dayBGM: {fileID: 8300000, guid: cc0fb114dff604e18a83c477fa876a0f, type: 3}
   nightBGM: {fileID: 8300000, guid: 8ed09b80c75b84e19af7dce60cda218b, type: 3}
+  useNightBGM: 0
 --- !u!82 &330585550
 AudioSource:
   m_ObjectHideFlags: 0
@@ -598,6 +600,24 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &330585551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b975ea254cbaf4ce79b141daee104bc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 623312867}
+  enemy: {fileID: 795078546}
+  minDistance: 1
+  maxDistance: 20
+  minVolume: 0.1
+  maxVolume: 0.558
 --- !u!4 &393306421 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4228200526562949455, guid: 0784e280c92b548fd92b0c38319be0a4, type: 3}
@@ -924,6 +944,11 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!4 &795078546 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7163448159891521974, guid: 4e2914bed88fb439dac06c3728a0c89f, type: 3}
+  m_PrefabInstance: {fileID: 938068089}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1476,20 +1501,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 1724188539349050125, guid: e394b44997edde24dad5de9037193d94, type: 3}
   m_PrefabInstance: {fileID: 1911135597536649258}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &2103755664
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103755657}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 218839b2cdeed49d98812140dc1d36c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  walk: {fileID: 8300000, guid: 6e3bdb297ea674497a4070a5e2535152, type: 3}
-  wallCollision: {fileID: 8300000, guid: 0b54bfa1ec8b04c489e63daa6479d1ec, type: 3}
 --- !u!82 &2103755665
 AudioSource:
   m_ObjectHideFlags: 0
@@ -1789,9 +1800,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1090832911}
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 1724188539349050125, guid: e394b44997edde24dad5de9037193d94, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2103755664}
     - targetCorrespondingSourceObject: {fileID: 1724188539349050125, guid: e394b44997edde24dad5de9037193d94, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2103755665}
