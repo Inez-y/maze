@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;  
 using System.Collections.Generic;
 
 [RequireComponent(typeof(CharacterController))]
@@ -16,9 +17,25 @@ public class EnemyControllerFSM : MonoBehaviour
     [Header("Movement")]
     public float moveSpeed = 2.0f;
 
+    [Header("Random Speed")]
+    public bool  useRandomSpeed = true;
+    public float minRandomSpeed = 0f;
+    public float maxRandomSpeed = 2.5f;
+    public float randomSpeedInterval = 2f;
+
     [Header("Decision")]
     [Min(1)] public int minCellsPerDecision = 2;
     [Min(1)] public int maxCellsPerDecision = 5;
+
+    [Header("Health")]
+    public int maxHP = 3; 
+    int currentHP;
+    bool isDead = false;
+    public GameObject enemyPrefab;  // respawn enemy
+
+    [Header("Sound Controller Import")]
+    EnemySoundController sound;
+
 
     [Header("Stuck Detection")]
     [Tooltip("How often to check if position is actually changing.")]
@@ -37,6 +54,7 @@ public class EnemyControllerFSM : MonoBehaviour
     public float wallProbeDistance = 0.25f;
     [Tooltip("Layers considered solid for the forward probe.")]
     public LayerMask wallMask = ~0;
+
 
     CharacterController cc;
     Animator animator;
@@ -63,11 +81,17 @@ public class EnemyControllerFSM : MonoBehaviour
     Vector3 lastVelocity = Vector3.zero;
     CollisionFlags lastCollisionFlags = CollisionFlags.None;
 
+    // Death logic
+    Vector3 deathPos;
+    Quaternion deathRot;
+
+
     void Awake()
     {
         cc = GetComponent<CharacterController>();
         animator  = GetComponentInChildren<Animator>();
         legacyAnim = GetComponentInChildren<Animation>();
+        sound = GetComponent<EnemySoundController>();
 
         if (!maze)
             maze = MapSpawner.ActiveMap ? MapSpawner.ActiveMap : FindFirstByType<FixedMap>();
@@ -89,11 +113,86 @@ public class EnemyControllerFSM : MonoBehaviour
 
         PickNewTarget();
         UpdateAnim(0f);
+
+        if (useRandomSpeed) StartCoroutine(RandomizeSpeedRoutine());
+
+        currentHP = maxHP;
+
     }
+    
+    IEnumerator RandomizeSpeedRoutine()
+    {
+        while (true)
+        {
+            moveSpeed = Random.Range(minRandomSpeed, maxRandomSpeed);
+            yield return new WaitForSeconds(randomSpeedInterval);
+        }
+    }
+
+    public void TakeDamage(int amount = 1)
+    {
+        if (isDead) return;
+
+        currentHP -= amount;
+        Debug.Log("Enemy HP: " + currentHP);
+        if (currentHP <= 0)
+            Die();
+    }
+
+    void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        // remember where it died
+        deathPos = transform.position;
+        deathRot = transform.rotation;
+
+        if (cc) cc.enabled = false;
+        if (sound) sound.PlayDeath();
+
+        // make enemy disappear right away 
+        HideVisuals();
+
+        // respawn in 5 seconds
+        Invoke(nameof(RespawnSelf), 5f);
+    }
+
+
+    void HideVisuals()
+    {
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = false;
+
+        foreach (var a in GetComponentsInChildren<Animator>())
+            a.enabled = false;
+    }
+
+
+
+    void RespawnSelf()
+    {
+        // spawn new enemy at the exact spot / rotation it died
+        var newEnemy = Instantiate(enemyPrefab, deathPos, deathRot);
+
+        if (newEnemy.TryGetComponent(out EnemySoundController s))
+            s.PlayRespawn();
+
+        Debug.Log("Enemy Respawned");
+
+        // now it's safe to destroy this dead one
+        Destroy(gameObject);
+    }
+
+
+
+
 
     void Update()
     {
         if (!maze) return;
+        if (isDead) return;
+
 
         // Proactive wall probe: if something is in front of our committed direction, reroute now.
         if (useForwardProbe && currentDir != Vector2Int.zero && IsWallAhead(out _))

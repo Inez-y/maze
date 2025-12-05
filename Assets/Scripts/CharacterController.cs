@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement; 
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
@@ -19,9 +20,30 @@ public class FPPlayerController : MonoBehaviour
     public string noclipActionName = "NoclipToggle"; // Button
     public string resetActionName  = "Reset";        // Button
 
+    // Sound effect
+    PlayerSoundController sound;
+    [Header("Sound Settings")]
+    public float stepInterval = 0.5f;     
+    public float wallSoundCooldown = 0.5f;
+    float lastStepTime;
+    float lastWallSoundTime;
+
+    [Header("Ball Throw")]
+    public GameObject ballPrefab;         
+    public float throwForce = 15f;
+    public string throwActionName = "Throw";   
+
+    [Header("Death UI")]
+    public GameObject deathPanel;  
+
+
+    // dead
+    bool isDead = false;   
+
     CharacterController cc;
     PlayerInput playerInput;
     InputAction moveAction, noclipAction, resetAction;
+    InputAction throwAction;  
 
     Vector3    startPos;
     Quaternion startRot;
@@ -36,6 +58,10 @@ public class FPPlayerController : MonoBehaviour
     {
         cc = GetComponent<CharacterController>();
         playerInput = GetComponent<PlayerInput>();
+        sound = GetComponent<PlayerSoundController>(); 
+
+        if (deathPanel != null)
+            deathPanel.SetActive(false);
 
         if (cam == null)
         {
@@ -65,17 +91,44 @@ public class FPPlayerController : MonoBehaviour
         if (noclipAction != null) noclipAction.performed += _ => ToggleNoclip();
         if (resetAction  != null) resetAction.performed  += _ => ResetToStart();
 
+        throwAction  = map.FindAction(throwActionName, false);
+
+        #if UNITY_EDITOR
+        if (throwAction == null) Debug.LogError($"FPPlayerController: Throw action '{throwActionName}' not found.");
+        #endif
+
+
         #if UNITY_EDITOR
                 if (moveAction == null) Debug.LogError($"FPPlayerController: Move action '{moveActionName}' not found.");
                 if (cam == null) Debug.LogWarning("FPPlayerController: No camera reference; movement will fall back to player forward.");
         #endif
     }
 
+    void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        // stop movement
+        if (cc) cc.enabled = false;
+
+        // show death UI
+        if (deathPanel != null)
+            deathPanel.SetActive(true);
+
+        
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+
+
     void OnEnable()
     {
         moveAction?.Enable();
         noclipAction?.Enable();
         resetAction?.Enable();
+        throwAction?.Enable();  
     }
 
     void OnDisable()
@@ -83,10 +136,23 @@ public class FPPlayerController : MonoBehaviour
         moveAction?.Disable();
         noclipAction?.Disable();
         resetAction?.Disable();
+        throwAction?.Disable();  
     }
 
     void Update()
     {
+        if (isDead)
+        {
+            if (Keyboard.current.rKey.wasPressedThisFrame)
+            {
+                // full scene restart:
+                var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                UnityEngine.SceneManagement.SceneManager.LoadScene(scene.buildIndex);
+                isDead = false;
+            }
+            return;
+        }
+
         // Keep player body aligned to camera yaw if desired
         if (alignYawToCamera && cam != null)
         {
@@ -113,10 +179,71 @@ public class FPPlayerController : MonoBehaviour
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
         if (noclip)
+        {
             transform.position += dir * moveSpeed * Time.deltaTime;
+        }
         else
+        {
             cc.SimpleMove(dir * moveSpeed);
+
+            // footstep
+            if (sound != null && cc.isGrounded && dir.sqrMagnitude > 0.01f)
+            {
+                if (Time.time - lastStepTime > stepInterval)
+                {
+                    sound.PlayWalk();
+                    lastStepTime = Time.time;
+                }
+            }
+        }
+
+        // Throw a ball
+        if (throwAction != null && throwAction.WasPerformedThisFrame())
+        {
+            ThrowBall();
+        }
     }
+
+    void ThrowBall()
+    {
+        if (ballPrefab == null || cam == null) return;
+
+        // spawn a bit in front of the camera so it doesn’t collide with the player
+        Transform origin = cam;
+        Vector3 spawnPos = origin.position + origin.forward * 0.5f;
+
+        GameObject ball = Instantiate(ballPrefab, spawnPos, Quaternion.identity);
+
+        if (ball.TryGetComponent<Rigidbody>(out Rigidbody rb))
+        {
+            rb.linearVelocity = origin.forward * throwForce;
+        }
+
+        Debug.Log("Throw!");
+    }
+
+
+
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        // enemy kill
+        if (hit.collider.CompareTag("Enemy"))
+        {
+            Die();
+            return;
+        }
+
+        if (sound == null) return;
+
+        bool isWall = Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
+        if (isWall && Time.time - lastWallSoundTime > wallSoundCooldown)
+        {
+            sound.PlayWallCollision();
+            lastWallSoundTime = Time.time;
+        }
+    }
+
+
 
     void ToggleNoclip()
     {
@@ -139,8 +266,6 @@ public class FPPlayerController : MonoBehaviour
             cam.localRotation = camStartLocalRot;
 
         #if CINEMACHINE
-            // If using Cinemachine POV or FreeLook, also zero its axes so mouse delta
-            // doesn't immediately push you away from the reset orientation.
             var pov = cam.GetComponentInParent<Cinemachine.CinemachinePOV>();
             if (pov != null)
             {
