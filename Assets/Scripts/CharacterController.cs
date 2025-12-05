@@ -222,8 +222,6 @@ public class FPPlayerController : MonoBehaviour
         Debug.Log("Throw!");
     }
 
-
-
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
         // enemy kill
@@ -233,17 +231,22 @@ public class FPPlayerController : MonoBehaviour
             return;
         }
 
+        // door hit
+        if (hit.collider.CompareTag("Door"))
+        {
+            Debug.Log("Hit a DOOR!");
+            SceneManager.LoadScene("Pong");
+        }
+
         if (sound == null) return;
 
-        bool isWall = Vector3.Dot(hit.normal, Vector3.up) < 0.5f; 
+        bool isWall = Vector3.Dot(hit.normal, Vector3.up) < 0.5f;
         if (isWall && Time.time - lastWallSoundTime > wallSoundCooldown)
         {
             sound.PlayWallCollision();
             lastWallSoundTime = Time.time;
         }
     }
-
-
 
     void ToggleNoclip()
     {
