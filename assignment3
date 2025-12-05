@@ -14,8 +14,11 @@ You can use existing shader assets, but you must give appropriate credit and not
 
 More detailed rubric on the learning hub
 
-[5 marks]	Add the option for the user to specify “day” (bright ambient) or “night” (low ambient lighting) conditions using a vertex and fragment shader. 
-The user should be able to toggle this with a key on the keyboard
+~[5 marks]	Add the option for the user to specify “day” (bright ambient) or “night” (low ambient lighting) conditions 
+using a vertex and fragment shader. 
+The user should be able to toggle this with a key on the keyboard~
+- Done
+- Enter -> toggle day or night
 
 
 [5 marks]	Add the option to turn on a fog effect using a vertex and fragment shader. 
