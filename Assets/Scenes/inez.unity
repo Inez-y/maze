@@ -1178,6 +1178,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51b59780fd76a4cdd92c632b1f530956, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1232996713
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1232996715}
+  - component: {fileID: 1232996714}
+  m_Layer: 0
+  m_Name: GlobalDayNightManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1232996714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232996713}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f8e49e672e7d4f9db508a689f557c2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dayValue: 0
+  nightValue: 0.909
+  smoothTransition: 1
+  transitionSpeed: 2
+--- !u!4 &1232996715
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232996713}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 15.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1439387949
 GameObject:
   m_ObjectHideFlags: 0
@@ -2260,3 +2308,4 @@ SceneRoots:
   - {fileID: 8767873329484631447}
   - {fileID: 1439387951}
   - {fileID: 6117211445057002074}
+  - {fileID: 1232996715}
