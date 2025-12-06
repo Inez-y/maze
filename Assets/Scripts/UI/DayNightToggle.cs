@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.InputSystem;   // new Input System
+using UnityEngine.InputSystem;
 
 public class GlobalDayNightToggle : MonoBehaviour
 {
@@ -9,9 +9,12 @@ public class GlobalDayNightToggle : MonoBehaviour
 
     [Header("Transition")]
     public bool smoothTransition = true;
-    public float transitionSpeed = 2f; // higher = faster
+    public float transitionSpeed = 2f;
 
-    private bool isNight = false;
+    [Header("References")]
+    [SerializeField] private BGMController bgmController;   // drag in Inspector
+
+    public bool isNight = false;
     private float targetBlend;
     private float currentBlend;
 
@@ -19,11 +22,19 @@ public class GlobalDayNightToggle : MonoBehaviour
 
     private void Start()
     {
+        // if you forgot to assign it, try to find one in the scene
+        if (bgmController == null)
+            bgmController = FindObjectOfType<BGMController>();
+
         isNight = false;
         targetBlend = dayValue;
         currentBlend = dayValue;
 
         Shader.SetGlobalFloat(GLOBAL_PROP_NAME, currentBlend);
+
+        // make sure BGM starts in day mode
+        if (bgmController != null)
+            bgmController.SetNightMode(isNight);
     }
 
     private void Update()
@@ -35,6 +46,9 @@ public class GlobalDayNightToggle : MonoBehaviour
         {
             isNight = !isNight;
             targetBlend = isNight ? nightValue : dayValue;
+
+            if (bgmController != null)
+                bgmController.SetNightMode(isNight);
         }
 
         if (smoothTransition)
