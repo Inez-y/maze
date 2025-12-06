@@ -1,6 +1,11 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Assets/Prefabs/Door.prefab.meta
 guid: 67ffb62397913ea44b7c85417c6aed4b
 PrefabImporter:
+========
+guid: ee4595ade00f14fb98eb6bcd7ac842e3
+DefaultImporter:
+>>>>>>>> 9f3ff04 (Add day/night bgm change):Assets/Scenes/inez 2.unity.meta
   externalObjects: {}
   userData: 
   assetBundleName: 
