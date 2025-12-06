@@ -9,7 +9,7 @@ public class BGMController : MonoBehaviour
     public AudioClip nightBGM;
 
     [Header("Mode")]
-    public bool useNightBGM = false;  
+    public bool useNightBGM = false;
 
     private AudioSource source;
 
@@ -19,14 +19,38 @@ public class BGMController : MonoBehaviour
         source.playOnAwake = false;
         source.loop = true;
 
-        // choose clip based on mode
-        AudioClip clipToPlay = useNightBGM ? nightBGM : dayBGM;
-        if (clipToPlay != null)
-        {
-            source.clip = clipToPlay;
-            source.Play();
-        }
+        // start with whatever useNightBGM currently is
+        UpdateClip();
     }
+
+    public void SetNightMode(bool night)
+    {
+        if (useNightBGM == night) return; // already in this mode
+
+        useNightBGM = night;
+        UpdateClip();
+    }
+
+    private void UpdateClip()
+    {
+        AudioClip newClip = useNightBGM ? nightBGM : dayBGM;
+        if (newClip == null) return;
+
+        bool wasPlaying = source.isPlaying;
+
+        source.Stop();
+        source.clip = newClip;
+
+        if (wasPlaying)
+            source.Play();
+    }
+
+    public void SetVolume(float volume)
+    {
+        if (source != null)
+            source.volume = Mathf.Clamp01(volume);
+    }
+
 
     void Update()
     {

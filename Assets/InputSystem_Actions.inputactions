@@ -90,16 +90,7 @@
                 {
                     "name": "Flashlight",
                     "type": "Button",
-                    "id": "f839812f-9129-47c4-826c-a5f5e53f728a",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "Save",
-                    "type": "Button",
-                    "id": "555a0202-db06-469c-9b9e-8809fb1172c4",
+                    "id": "c7d8d853-5dcc-44b7-9ee7-828e0159272a",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -417,22 +408,11 @@
                 },
                 {
                     "name": "",
-                    "id": "91bfaec0-0291-4fc5-9c10-69a19d1122dd",
-                    "path": "<Keyboard>/g",
+                    "id": "52c2f74b-119a-493a-aef0-3a1a070d449c",
+                    "path": "<Keyboard>/period",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
-                    "action": "Save",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "c25a3de2-2d50-4d88-9d2c-5891e1f8f978",
-                    "path": "<Keyboard>/f",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse;Gamepad",
                     "action": "Flashlight",
                     "isComposite": false,
                     "isPartOfComposite": false
