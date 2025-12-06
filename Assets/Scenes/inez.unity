@@ -1496,6 +1496,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   fogOffValue: 0
   fogOnValue: 1
+  bgmController: {fileID: 61523777}
+  fogOnVolume: 0.5
+  fogOffVolume: 1
 --- !u!1 &1439387949
 GameObject:
   m_ObjectHideFlags: 0

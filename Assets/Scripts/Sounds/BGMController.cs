@@ -45,6 +45,13 @@ public class BGMController : MonoBehaviour
             source.Play();
     }
 
+    public void SetVolume(float volume)
+    {
+        if (source != null)
+            source.volume = Mathf.Clamp01(volume);
+    }
+
+
     void Update()
     {
         // [ stop
