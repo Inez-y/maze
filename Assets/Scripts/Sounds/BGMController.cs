@@ -10,7 +10,6 @@ public class BGMController : MonoBehaviour
 
     [Header("Mode")]
     public bool useNightBGM = false;
-    public bool useNightBGM = false;
 
     private AudioSource source;
 
