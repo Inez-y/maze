@@ -144,7 +144,7 @@ MonoBehaviour:
   minCellsPerDecision: 2
   maxCellsPerDecision: 5
   maxHP: 3
-  enemyPrefab: {fileID: 0}
+  enemyPrefab: {fileID: 7503699057168276236}
   stuckCheckInterval: 0.1
   minMoveDistance: 0.04
   maxStuckChecks: 1

@@ -113,7 +113,7 @@ Material:
     - _EnvironmentReflections: 1
     - _FlashInnerAngle: 15
     - _FlashIntensity: 1
-    - _FlashOn: 0
+    - _FlashOn: 1
     - _FlashOuterAngle: 30
     - _FlashRange: 20
     - _FogEnd: 10
