@@ -32,7 +32,7 @@ Material:
     m_Floats:
     - _FlashInnerAngle: 0
     - _FlashIntensity: 100
-    - _FlashOn: 0
+    - _FlashOn: 1
     - _FlashOuterAngle: 90
     - _FlashRange: 50
     m_Colors:
